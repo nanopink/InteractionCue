@@ -8,7 +8,7 @@ import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
 import net.runelite.client.config.Range;
 
-@ConfigGroup("interaction-cue")
+@ConfigGroup("interaction-cue-v2")
 public interface InteractionCueConfig extends Config
 {
 	@ConfigSection(
@@ -200,12 +200,12 @@ public interface InteractionCueConfig extends Config
 		position = 9,
 		keyName = "labelFormat",
 		name = "Format",
-		description = "Supports {action}, {tool}, {target}, {action_icon}, {icon}, and color tags such as {#FFF}",
+		description = "Supports {action}, {source}, {target}, {source_icon}, and color tags such as {#FFF}",
 		section = tooltipSection
 	)
 	default String labelFormat()
 	{
-		return "{#FFF}{action} {action_icon} {#FF9040}{tool}{target:{#FFF} -> {#00ffff}@1}";
+		return "{#FFF}{action} {source_icon} {#FF9040}{source}{target:{#FFF} -> {#00ffff}@1}";
 	}
 
 	@ConfigItem(
@@ -448,7 +448,7 @@ public interface InteractionCueConfig extends Config
 	)
 	default Color pendingMarkerColor()
 	{
-		return new Color(0x00, 0xFF, 0xFF, 0xFF);
+		return new Color(0xFF, 0xFF, 0x0C, 0xFF);
 	}
 
 	@Range(

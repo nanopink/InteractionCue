@@ -4,6 +4,7 @@ import com.google.inject.Provides;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
@@ -60,7 +61,7 @@ public class InteractionCuePlugin extends Plugin
 	@Inject
 	private InteractionCueItemOverlay itemOverlay;
 
-	private final Map<Integer, BufferedImage> itemImages = new HashMap<>();
+	private final Map<Long, BufferedImage> itemImages = new HashMap<>();
 	private final Map<Integer, BufferedImage> spellImages = new HashMap<>();
 	private int pendingSlot = -1;
 	private int pendingItemId = -1;
@@ -71,6 +72,7 @@ public class InteractionCuePlugin extends Plugin
 	private int pendingObservedAnimation;
 	private int pendingObservedGraphic;
 	private Actor pendingObservedInteracting;
+	private int pendingInactiveTicks;
 	private boolean pendingObservedAction;
 	private InteractionCue pendingCue = InteractionCue.NONE;
 
@@ -102,6 +104,12 @@ public class InteractionCuePlugin extends Plugin
 			return;
 		}
 
+		if (isSelectedInventorySlot(event.getParam0()))
+		{
+			clearPending();
+			return;
+		}
+
 		pendingSlot = event.getParam0();
 		Item item = getInventoryItem(pendingSlot);
 		pendingItemId = item == null ? -1 : item.getId();
@@ -112,6 +120,7 @@ public class InteractionCuePlugin extends Plugin
 		pendingObservedAnimation = -1;
 		pendingObservedGraphic = -1;
 		pendingObservedInteracting = null;
+		pendingInactiveTicks = 0;
 		pendingObservedAction = false;
 		pendingCue = cue;
 	}
@@ -146,7 +155,7 @@ public class InteractionCuePlugin extends Plugin
 	@Subscribe
 	public void onChatMessage(ChatMessage event)
 	{
-		if (pendingSlot >= 0 && !pendingObservedAction && isActionResponseMessage(event))
+		if (pendingSlot >= 0 && isActionFailureMessage(event))
 		{
 			clearPending();
 		}
@@ -175,7 +184,19 @@ public class InteractionCuePlugin extends Plugin
 		}
 
 		observePendingAction();
-		if (pendingObservedAction && !isObservedActionActive())
+		if (!pendingObservedAction)
+		{
+			return;
+		}
+
+		if (isObservedActionActive())
+		{
+			pendingInactiveTicks = 0;
+			return;
+		}
+
+		pendingInactiveTicks++;
+		if (pendingInactiveTicks > 1)
 		{
 			clearPending();
 		}
@@ -207,7 +228,8 @@ public class InteractionCuePlugin extends Plugin
 				return InteractionCue.NONE;
 			}
 
-			return new InteractionCue(true, "Use", itemName, getMenuTarget(), getItemImage(widget.getItemId()), new Color(70, 145, 230));
+			int quantity = Math.max(1, widget.getItemQuantity());
+			return new InteractionCue(true, "Use", itemName, getMenuTarget(), getItemImage(widget.getItemId(), quantity), new Color(70, 145, 230));
 		}
 
 		if (WidgetUtil.componentToInterface(widget.getId()) != InterfaceID.MAGIC_SPELLBOOK)
@@ -237,6 +259,12 @@ public class InteractionCuePlugin extends Plugin
 
 		MenuAction action = event.getMenuAction();
 		return action == MenuAction.WIDGET_TARGET_ON_WIDGET || action == MenuAction.WIDGET_USE_ON_ITEM || action == MenuAction.ITEM_USE_ON_ITEM;
+	}
+
+	private boolean isSelectedInventorySlot(int slot)
+	{
+		Widget widget = client.getSelectedWidget();
+		return widget != null && widget.getId() == InterfaceID.Inventory.ITEMS && widget.getIndex() == slot;
 	}
 
 	private Item getInventoryItem(int slot)
@@ -273,9 +301,34 @@ public class InteractionCuePlugin extends Plugin
 		return item != null && item.getId() == pendingItemId && item.getQuantity() == pendingQuantity;
 	}
 
-	private boolean isActionResponseMessage(ChatMessage event)
+	private boolean isActionFailureMessage(ChatMessage event)
 	{
-		return event.getType() == ChatMessageType.GAMEMESSAGE || event.getType() == ChatMessageType.SPAM;
+		return (event.getType() == ChatMessageType.GAMEMESSAGE || event.getType() == ChatMessageType.SPAM)
+			&& isActionFailureMessage(event.getMessage());
+	}
+
+	static boolean isActionFailureMessage(String message)
+	{
+		if (message == null)
+		{
+			return false;
+		}
+
+		String cleaned = Text.removeTags(message).trim().toLowerCase(Locale.ROOT);
+		if (cleaned.endsWith("."))
+		{
+			cleaned = cleaned.substring(0, cleaned.length() - 1);
+		}
+
+		return cleaned.equals("nothing interesting happens")
+			|| cleaned.startsWith("you can't use ")
+			|| cleaned.startsWith("you cannot use ")
+			|| cleaned.startsWith("you can't cast ")
+			|| cleaned.startsWith("you cannot cast ")
+			|| cleaned.startsWith("you don't have ")
+			|| cleaned.startsWith("you do not have ")
+			|| cleaned.startsWith("you haven't got ")
+			|| cleaned.startsWith("you need ");
 	}
 
 	private boolean isSelectedInventoryItemValid(Widget widget)
@@ -305,9 +358,10 @@ public class InteractionCuePlugin extends Plugin
 		return false;
 	}
 
-	BufferedImage getItemImage(int itemId)
+	BufferedImage getItemImage(int itemId, int quantity)
 	{
-		return itemImages.computeIfAbsent(itemId, itemManager::getImage);
+		long key = ((long) itemId << 32) | (quantity & 0xFFFFFFFFL);
+		return itemImages.computeIfAbsent(key, ignored -> itemManager.getImage(itemId, quantity, false));
 	}
 
 	private BufferedImage getSpellImage(Widget widget)
@@ -407,6 +461,7 @@ public class InteractionCuePlugin extends Plugin
 		pendingObservedAnimation = -1;
 		pendingObservedGraphic = -1;
 		pendingObservedInteracting = null;
+		pendingInactiveTicks = 0;
 		pendingObservedAction = false;
 		pendingCue = InteractionCue.NONE;
 	}

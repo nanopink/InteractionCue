@@ -9,16 +9,16 @@ class InteractionCue
 
 	private final boolean active;
 	private final String action;
-	private final String tool;
+	private final String source;
 	private final String target;
 	private final BufferedImage image;
 	private final Color color;
 
-	InteractionCue(boolean active, String action, String tool, String target, BufferedImage image, Color color)
+	InteractionCue(boolean active, String action, String source, String target, BufferedImage image, Color color)
 	{
 		this.active = active;
 		this.action = action;
-		this.tool = tool;
+		this.source = source;
 		this.target = target;
 		this.image = image;
 		this.color = color;
@@ -34,9 +34,9 @@ class InteractionCue
 		return action;
 	}
 
-	String getTool()
+	String getSource()
 	{
-		return tool;
+		return source;
 	}
 
 	String getTarget()
@@ -56,11 +56,11 @@ class InteractionCue
 
 	String getShortLabel()
 	{
-		if (action.isEmpty())
+		if (source.isEmpty())
 		{
 			return "";
 		}
 
-		return action.length() <= 3 ? action.toUpperCase() : action.substring(0, 3).toUpperCase();
+		return source.length() <= 3 ? source.toUpperCase() : source.substring(0, 3).toUpperCase();
 	}
 }

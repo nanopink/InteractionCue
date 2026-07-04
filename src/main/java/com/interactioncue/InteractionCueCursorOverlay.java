@@ -233,7 +233,12 @@ public class InteractionCueCursorOverlay extends Overlay
 
 		for (int i = 0; i < format.length(); )
 		{
-			if (format.charAt(i) == '{')
+			if (format.charAt(i) == '\\' && i + 1 < format.length())
+			{
+				text.append(format.charAt(i + 1));
+				i += 2;
+			}
+			else if (format.charAt(i) == '{')
 			{
 				int end = findTokenEnd(format, i);
 				if (end < 0)
@@ -285,9 +290,9 @@ public class InteractionCueCursorOverlay extends Overlay
 			return true;
 		}
 
-		if ("tool".equals(token))
+		if ("source".equals(token))
 		{
-			text.append(cue.getTool());
+			text.append(cue.getSource());
 			return true;
 		}
 
@@ -297,7 +302,7 @@ public class InteractionCueCursorOverlay extends Overlay
 			return true;
 		}
 
-		if ("action_icon".equals(token) || "icon".equals(token))
+		if ("source_icon".equals(token))
 		{
 			addPart(parts, text, state.color);
 			parts.add(new InteractionCueLabelPart(cue.getImage(), cue.getColor(), cue.getShortLabel()));
@@ -390,7 +395,11 @@ public class InteractionCueCursorOverlay extends Overlay
 		for (int i = start; i < value.length(); i++)
 		{
 			char ch = value.charAt(i);
-			if (ch == '{')
+			if (ch == '\\' && i + 1 < value.length())
+			{
+				i++;
+			}
+			else if (ch == '{')
 			{
 				depth++;
 			}
@@ -407,15 +416,18 @@ public class InteractionCueCursorOverlay extends Overlay
 		return -1;
 	}
 
-	private List<String> splitTopLevel(String value)
+	static List<String> splitTopLevel(String value)
 	{
-		List<String> parts = new ArrayList<>();
+		List<Integer> separators = new ArrayList<>();
 		int depth = 0;
-		int start = 0;
 		for (int i = 0; i < value.length(); i++)
 		{
 			char ch = value.charAt(i);
-			if (ch == '{')
+			if (ch == '\\' && i + 1 < value.length())
+			{
+				i++;
+			}
+			else if (ch == '{')
 			{
 				depth++;
 			}
@@ -425,20 +437,31 @@ public class InteractionCueCursorOverlay extends Overlay
 			}
 			else if (ch == ':' && depth == 0)
 			{
-				parts.add(value.substring(start, i));
-				start = i + 1;
-				if (parts.size() == 2)
+				separators.add(i);
+				if (separators.size() == 2)
 				{
 					break;
 				}
 			}
 		}
 
-		if (!parts.isEmpty())
+		if (separators.isEmpty())
 		{
-			parts.add(value.substring(start));
+			return new ArrayList<>();
 		}
 
+		List<String> parts = new ArrayList<>();
+		int first = separators.get(0);
+		parts.add(value.substring(0, first));
+		if (separators.size() == 1)
+		{
+			parts.add(value.substring(first + 1));
+			return parts;
+		}
+
+		int second = separators.get(1);
+		parts.add(value.substring(first + 1, second));
+		parts.add(value.substring(second + 1));
 		return parts;
 	}
 
@@ -448,8 +471,8 @@ public class InteractionCueCursorOverlay extends Overlay
 		{
 			case "action":
 				return cue.getAction();
-			case "tool":
-				return cue.getTool();
+			case "source":
+				return cue.getSource();
 			case "target":
 				return cue.getTarget();
 			default:
