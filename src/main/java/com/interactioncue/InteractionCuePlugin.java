@@ -8,6 +8,7 @@ import java.util.Map;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Actor;
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.InventoryID;
 import net.runelite.api.Item;
@@ -15,6 +16,7 @@ import net.runelite.api.ItemContainer;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.MenuAction;
 import net.runelite.api.events.AnimationChanged;
+import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.GraphicChanged;
 import net.runelite.api.events.InteractingChanged;
@@ -61,6 +63,8 @@ public class InteractionCuePlugin extends Plugin
 	private final Map<Integer, BufferedImage> itemImages = new HashMap<>();
 	private final Map<Integer, BufferedImage> spellImages = new HashMap<>();
 	private int pendingSlot = -1;
+	private int pendingItemId = -1;
+	private int pendingQuantity;
 	private int pendingAnimation;
 	private int pendingGraphic;
 	private Actor pendingInteracting;
@@ -99,6 +103,9 @@ public class InteractionCuePlugin extends Plugin
 		}
 
 		pendingSlot = event.getParam0();
+		Item item = getInventoryItem(pendingSlot);
+		pendingItemId = item == null ? -1 : item.getId();
+		pendingQuantity = item == null ? 0 : item.getQuantity();
 		pendingAnimation = getLocalAnimation();
 		pendingGraphic = getLocalGraphic();
 		pendingInteracting = getLocalInteracting();
@@ -137,6 +144,15 @@ public class InteractionCuePlugin extends Plugin
 	}
 
 	@Subscribe
+	public void onChatMessage(ChatMessage event)
+	{
+		if (pendingSlot >= 0 && !pendingObservedAction && isActionResponseMessage(event))
+		{
+			clearPending();
+		}
+	}
+
+	@Subscribe
 	public void onItemContainerChanged(ItemContainerChanged event)
 	{
 		if (pendingSlot < 0 || event.getContainerId() != InventoryID.INVENTORY.getId())
@@ -144,7 +160,10 @@ public class InteractionCuePlugin extends Plugin
 			return;
 		}
 
-		clearPending();
+		if (!isPendingItemStillInSlot(event.getItemContainer()))
+		{
+			clearPending();
+		}
 	}
 
 	@Subscribe
@@ -154,17 +173,9 @@ public class InteractionCuePlugin extends Plugin
 		{
 			return;
 		}
-		if (!pendingObservedAction)
-		{
-			observePendingAction();
-			if (!pendingObservedAction)
-			{
-				clearPending();
-				return;
-			}
-		}
 
-		if (!isObservedActionActive())
+		observePendingAction();
+		if (pendingObservedAction && !isObservedActionActive())
 		{
 			clearPending();
 		}
@@ -226,6 +237,45 @@ public class InteractionCuePlugin extends Plugin
 
 		MenuAction action = event.getMenuAction();
 		return action == MenuAction.WIDGET_TARGET_ON_WIDGET || action == MenuAction.WIDGET_USE_ON_ITEM || action == MenuAction.ITEM_USE_ON_ITEM;
+	}
+
+	private Item getInventoryItem(int slot)
+	{
+		ItemContainer inventory = client.getItemContainer(InventoryID.INVENTORY);
+		if (inventory == null)
+		{
+			return null;
+		}
+
+		Item[] items = inventory.getItems();
+		return slot >= 0 && slot < items.length ? items[slot] : null;
+	}
+
+	private boolean isPendingItemStillInSlot(ItemContainer inventory)
+	{
+		if (inventory == null)
+		{
+			return false;
+		}
+
+		Item[] items = inventory.getItems();
+		if (pendingSlot < 0 || pendingSlot >= items.length)
+		{
+			return false;
+		}
+
+		Item item = items[pendingSlot];
+		if (pendingItemId <= 0)
+		{
+			return item == null || item.getQuantity() <= 0;
+		}
+
+		return item != null && item.getId() == pendingItemId && item.getQuantity() == pendingQuantity;
+	}
+
+	private boolean isActionResponseMessage(ChatMessage event)
+	{
+		return event.getType() == ChatMessageType.GAMEMESSAGE || event.getType() == ChatMessageType.SPAM;
 	}
 
 	private boolean isSelectedInventoryItemValid(Widget widget)
@@ -349,6 +399,8 @@ public class InteractionCuePlugin extends Plugin
 	private void clearPending()
 	{
 		pendingSlot = -1;
+		pendingItemId = -1;
+		pendingQuantity = 0;
 		pendingAnimation = -1;
 		pendingGraphic = -1;
 		pendingInteracting = null;
