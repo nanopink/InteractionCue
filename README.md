@@ -2,6 +2,23 @@
 
 Shows selected spell and Use item cues near the cursor, plus pending markers on inventory slots clicked with selected spell or item-use actions.
 
+# Tooltip
+
+Take full control of your tooltips. Customize everything from colors and layout to behavior, and build the exact experience you want.
+
+<img width="456" height="215" alt="image" src="https://github.com/user-attachments/assets/687ac6b3-6c96-474c-8ee2-7069cf70fefa" />
+<img width="391" height="91" alt="image" src="https://github.com/user-attachments/assets/aeee7c9b-877c-4a85-a0a7-6ef0f1f1bca9" />
+<img width="256" height="91" alt="image" src="https://github.com/user-attachments/assets/fcea1adb-5580-4986-b3a0-570e1a14de35" />
+<img width="639" height="118" alt="image" src="https://github.com/user-attachments/assets/d85e9b16-d930-49ad-89c8-8b9b3ab8d34d" />
+
+# Marker
+
+Never wonder if an action is waiting for a reaction again. Markers make pending actions instantly obvious at a glance.
+
+<img width="494" height="91" alt="image" src="https://github.com/user-attachments/assets/f0691311-ff66-487c-b4f1-54a2e6709c8a" />
+<img width="244" height="91" alt="image" src="https://github.com/user-attachments/assets/53304e3a-d388-4c20-b349-ff1ff76a6387" />
+
+
 ## Run
 
 Use the local launcher so Gradle runs with the installed JDK 21:
