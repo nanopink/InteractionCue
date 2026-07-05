@@ -4,12 +4,10 @@ import com.google.inject.Provides;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Actor;
-import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.InventoryID;
 import net.runelite.api.Item;
@@ -17,12 +15,12 @@ import net.runelite.api.ItemContainer;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.MenuAction;
 import net.runelite.api.events.AnimationChanged;
-import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.GraphicChanged;
 import net.runelite.api.events.InteractingChanged;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.MenuOptionClicked;
+import net.runelite.api.events.PostClientTick;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetUtil;
@@ -38,11 +36,13 @@ import net.runelite.client.util.Text;
 @Slf4j
 @PluginDescriptor(
 	name = "Interaction Cue",
-	description = "Shows High Alchemy, Low Alchemy, alch, all selected spell, Use item, cursor indicator, label, and pending inventory action cues for your next click",
+	description = "Marks inventory slots clicked with selected spell or item-use actions, and shows selected spell and Use item cues near the cursor",
 	tags = {"interaction cue", "interaction", "interactions", "cue", "action cue", "click cue", "click indicator", "pending action", "high alchemy", "low alchemy", "high alch", "low alch", "alch", "alchemy", "spell", "spellbook", "cast", "use item", "item use", "cursor", "next click", "inventory", "pending"}
 )
 public class InteractionCuePlugin extends Plugin
 {
+	private static final int SIGNAL_WAIT_TICKS = 2;
+
 	@Inject
 	private Client client;
 
@@ -66,14 +66,23 @@ public class InteractionCuePlugin extends Plugin
 	private int pendingSlot = -1;
 	private int pendingItemId = -1;
 	private int pendingQuantity;
+	private int pendingSourceWidgetId;
+	private int pendingSourceIndex;
+	private int pendingSourceItemId;
 	private int pendingAnimation;
+	private int pendingAnimationFrame;
+	private boolean pendingAnimationCleared;
 	private int pendingGraphic;
+	private int pendingGraphicFrame;
+	private boolean pendingGraphicCleared;
 	private Actor pendingInteracting;
 	private int pendingObservedAnimation;
 	private int pendingObservedGraphic;
 	private Actor pendingObservedInteracting;
+	private int pendingAwaitingActionTicks;
 	private int pendingInactiveTicks;
 	private boolean pendingObservedAction;
+	private boolean pendingMarkerVisible;
 	private InteractionCue pendingCue = InteractionCue.NONE;
 
 	@Override
@@ -111,17 +120,27 @@ public class InteractionCuePlugin extends Plugin
 		}
 
 		pendingSlot = event.getParam0();
+		Widget selected = client.getSelectedWidget();
 		Item item = getInventoryItem(pendingSlot);
 		pendingItemId = item == null ? -1 : item.getId();
 		pendingQuantity = item == null ? 0 : item.getQuantity();
+		pendingSourceWidgetId = selected == null ? -1 : selected.getId();
+		pendingSourceIndex = selected == null ? -1 : selected.getIndex();
+		pendingSourceItemId = selected == null ? -1 : selected.getItemId();
 		pendingAnimation = getLocalAnimation();
+		pendingAnimationFrame = getLocalAnimationFrame();
+		pendingAnimationCleared = pendingAnimation == -1;
 		pendingGraphic = getLocalGraphic();
+		pendingGraphicFrame = getLocalGraphicFrame();
+		pendingGraphicCleared = pendingGraphic == -1;
 		pendingInteracting = getLocalInteracting();
 		pendingObservedAnimation = -1;
 		pendingObservedGraphic = -1;
 		pendingObservedInteracting = null;
+		pendingAwaitingActionTicks = 0;
 		pendingInactiveTicks = 0;
 		pendingObservedAction = false;
+		pendingMarkerVisible = isInitialActionStillActive();
 		pendingCue = cue;
 	}
 
@@ -153,12 +172,9 @@ public class InteractionCuePlugin extends Plugin
 	}
 
 	@Subscribe
-	public void onChatMessage(ChatMessage event)
+	public void onPostClientTick(PostClientTick event)
 	{
-		if (pendingSlot >= 0 && isActionFailureMessage(event))
-		{
-			clearPending();
-		}
+		observePendingAction();
 	}
 
 	@Subscribe
@@ -186,6 +202,17 @@ public class InteractionCuePlugin extends Plugin
 		observePendingAction();
 		if (!pendingObservedAction)
 		{
+			if (isPendingSourceSelected() || isInitialActionStillActive())
+			{
+				pendingAwaitingActionTicks = 0;
+				return;
+			}
+
+			pendingAwaitingActionTicks++;
+			if (pendingAwaitingActionTicks > SIGNAL_WAIT_TICKS)
+			{
+				clearPending();
+			}
 			return;
 		}
 
@@ -242,12 +269,12 @@ public class InteractionCuePlugin extends Plugin
 
 	InteractionCue getPendingCue()
 	{
-		return pendingCue;
+		return pendingMarkerVisible ? pendingCue : InteractionCue.NONE;
 	}
 
 	boolean isPendingSlot(int slot)
 	{
-		return pendingSlot == slot;
+		return pendingMarkerVisible && pendingSlot == slot;
 	}
 
 	private boolean isInventoryPendingAction(MenuOptionClicked event)
@@ -299,36 +326,6 @@ public class InteractionCuePlugin extends Plugin
 		}
 
 		return item != null && item.getId() == pendingItemId && item.getQuantity() == pendingQuantity;
-	}
-
-	private boolean isActionFailureMessage(ChatMessage event)
-	{
-		return (event.getType() == ChatMessageType.GAMEMESSAGE || event.getType() == ChatMessageType.SPAM)
-			&& isActionFailureMessage(event.getMessage());
-	}
-
-	static boolean isActionFailureMessage(String message)
-	{
-		if (message == null)
-		{
-			return false;
-		}
-
-		String cleaned = Text.removeTags(message).trim().toLowerCase(Locale.ROOT);
-		if (cleaned.endsWith("."))
-		{
-			cleaned = cleaned.substring(0, cleaned.length() - 1);
-		}
-
-		return cleaned.equals("nothing interesting happens")
-			|| cleaned.startsWith("you can't use ")
-			|| cleaned.startsWith("you cannot use ")
-			|| cleaned.startsWith("you can't cast ")
-			|| cleaned.startsWith("you cannot cast ")
-			|| cleaned.startsWith("you don't have ")
-			|| cleaned.startsWith("you do not have ")
-			|| cleaned.startsWith("you haven't got ")
-			|| cleaned.startsWith("you need ");
 	}
 
 	private boolean isSelectedInventoryItemValid(Widget widget)
@@ -455,39 +452,83 @@ public class InteractionCuePlugin extends Plugin
 		pendingSlot = -1;
 		pendingItemId = -1;
 		pendingQuantity = 0;
+		pendingSourceWidgetId = -1;
+		pendingSourceIndex = -1;
+		pendingSourceItemId = -1;
 		pendingAnimation = -1;
+		pendingAnimationFrame = -1;
+		pendingAnimationCleared = true;
 		pendingGraphic = -1;
+		pendingGraphicFrame = -1;
+		pendingGraphicCleared = true;
 		pendingInteracting = null;
 		pendingObservedAnimation = -1;
 		pendingObservedGraphic = -1;
 		pendingObservedInteracting = null;
+		pendingAwaitingActionTicks = 0;
 		pendingInactiveTicks = 0;
 		pendingObservedAction = false;
+		pendingMarkerVisible = false;
 		pendingCue = InteractionCue.NONE;
+	}
+
+	private boolean isPendingSourceSelected()
+	{
+		if (!client.isWidgetSelected())
+		{
+			return false;
+		}
+
+		Widget selected = client.getSelectedWidget();
+		return selected != null
+			&& selected.getId() == pendingSourceWidgetId
+			&& selected.getIndex() == pendingSourceIndex
+			&& selected.getItemId() == pendingSourceItemId;
+	}
+
+	private boolean isInitialActionStillActive()
+	{
+		return pendingAnimation != -1 && !pendingAnimationCleared && getLocalAnimation() == pendingAnimation
+			|| pendingGraphic != -1 && !pendingGraphicCleared && getLocalGraphic() == pendingGraphic
+			|| pendingInteracting != null && getLocalInteracting() == pendingInteracting;
 	}
 
 	private void observePendingAction()
 	{
-		if (pendingSlot < 0 || pendingObservedAction || !hasNewLocalActionSignal())
+		if (pendingSlot < 0 || pendingObservedAction)
 		{
 			return;
 		}
 
 		int animation = getLocalAnimation();
+		int animationFrame = getLocalAnimationFrame();
 		int graphic = getLocalGraphic();
+		int graphicFrame = getLocalGraphicFrame();
 		Actor interacting = getLocalInteracting();
-		pendingObservedAnimation = animation != -1 && animation != pendingAnimation ? animation : -1;
-		pendingObservedGraphic = graphic != -1 && graphic != pendingGraphic ? graphic : -1;
+		if (animation == -1 && pendingAnimation != -1)
+		{
+			pendingAnimationCleared = true;
+		}
+		if (graphic == -1 && pendingGraphic != -1)
+		{
+			pendingGraphicCleared = true;
+		}
+
+		pendingObservedAnimation = hasNewAnimationSignal(animation, animationFrame) ? animation : -1;
+		pendingObservedGraphic = hasNewGraphicSignal(graphic, graphicFrame) ? graphic : -1;
 		pendingObservedInteracting = pendingObservedAnimation == -1 && pendingObservedGraphic == -1 && interacting != null && interacting != pendingInteracting ? interacting : null;
 		pendingObservedAction = pendingObservedAnimation != -1 || pendingObservedGraphic != -1 || pendingObservedInteracting != null;
+		pendingMarkerVisible = pendingMarkerVisible || pendingObservedAction;
 	}
 
-	private boolean hasNewLocalActionSignal()
+	private boolean hasNewAnimationSignal(int animation, int frame)
 	{
-		int animation = getLocalAnimation();
-		int graphic = getLocalGraphic();
-		Actor interacting = getLocalInteracting();
-		return animation != -1 && animation != pendingAnimation || graphic != -1 && graphic != pendingGraphic || interacting != null && interacting != pendingInteracting;
+		return animation != -1 && (animation != pendingAnimation || pendingAnimationCleared || frame >= 0 && frame < pendingAnimationFrame);
+	}
+
+	private boolean hasNewGraphicSignal(int graphic, int frame)
+	{
+		return graphic != -1 && (graphic != pendingGraphic || pendingGraphicCleared || frame >= 0 && frame < pendingGraphicFrame);
 	}
 
 	private boolean isObservedActionActive()
@@ -502,9 +543,19 @@ public class InteractionCuePlugin extends Plugin
 		return client.getLocalPlayer() == null ? -1 : client.getLocalPlayer().getAnimation();
 	}
 
+	private int getLocalAnimationFrame()
+	{
+		return client.getLocalPlayer() == null ? -1 : client.getLocalPlayer().getAnimationFrame();
+	}
+
 	private int getLocalGraphic()
 	{
 		return client.getLocalPlayer() == null ? -1 : client.getLocalPlayer().getGraphic();
+	}
+
+	private int getLocalGraphicFrame()
+	{
+		return client.getLocalPlayer() == null ? -1 : client.getLocalPlayer().getSpotAnimFrame();
 	}
 
 	private Actor getLocalInteracting()

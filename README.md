@@ -1,6 +1,6 @@
 # Interaction Cue
 
-Shows selected spell and Use item cues near the cursor, plus pending markers on inventory slots clicked with selected spell or item-use actions.
+Marks pending inventory actions at a glance, and shows selected spell and Use item cues near the cursor.
 
 # Marker
 

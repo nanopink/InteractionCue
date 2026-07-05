@@ -12,7 +12,7 @@ import net.runelite.client.config.Range;
 public interface InteractionCueConfig extends Config
 {
 	@ConfigSection(
-		name = "Tooltip General",
+		name = "Tooltip",
 		description = "Controls whether the cursor cue is shown, where it appears, its icon size, and the text/icon format used while an item or spell is selected.",
 		position = 0
 	)
@@ -33,29 +33,29 @@ public interface InteractionCueConfig extends Config
 	String tooltipBorderSection = "tooltipBorder";
 
 	@ConfigSection(
-		name = "Pending Marker",
+		name = "Marker",
 		description = "Controls the badge shown on an inventory slot after you click it with a selected item or spell, until the next tick resolves the action state.",
 		position = 3
 	)
 	String markerSection = "marker";
 
 	@ConfigSection(
-		name = "Pending Marker Border",
-		description = "Styles the outline around the inventory pending badge.",
+		name = "Marker Border",
+		description = "Styles the outline around the inventory marker badge.",
 		position = 4
 	)
 	String markerBorderSection = "markerBorder";
 
 	@ConfigSection(
-		name = "Pending Marker Icon",
-		description = "Controls the selected item or spell icon drawn inside the pending badge.",
+		name = "Marker Icon",
+		description = "Controls the selected item or spell icon drawn inside the marker badge.",
 		position = 5
 	)
 	String markerIconSection = "markerIcon";
 
 	@ConfigSection(
-		name = "Pending Marker Background",
-		description = "Styles the filled area behind the pending badge icon.",
+		name = "Marker Background",
+		description = "Styles the filled area behind the marker badge icon.",
 		position = 6
 	)
 	String markerBackgroundSection = "markerBackground";
@@ -85,7 +85,7 @@ public interface InteractionCueConfig extends Config
 	)
 	default int xOffset()
 	{
-		return 22;
+		return 7;
 	}
 
 	@Range(
@@ -101,7 +101,7 @@ public interface InteractionCueConfig extends Config
 	)
 	default int yOffset()
 	{
-		return 0;
+		return 32;
 	}
 
 	@Range(
@@ -117,7 +117,7 @@ public interface InteractionCueConfig extends Config
 	)
 	default int iconSize()
 	{
-		return 16;
+		return 32;
 	}
 
 	@ConfigItem(
@@ -145,7 +145,7 @@ public interface InteractionCueConfig extends Config
 	)
 	default int backgroundPaddingTop()
 	{
-		return 2;
+		return 0;
 	}
 
 	@Range(
@@ -161,7 +161,7 @@ public interface InteractionCueConfig extends Config
 	)
 	default int backgroundPaddingRight()
 	{
-		return 8;
+		return 0;
 	}
 
 	@Range(
@@ -177,7 +177,7 @@ public interface InteractionCueConfig extends Config
 	)
 	default int backgroundPaddingBottom()
 	{
-		return 2;
+		return 0;
 	}
 
 	@Range(
@@ -193,7 +193,7 @@ public interface InteractionCueConfig extends Config
 	)
 	default int backgroundPaddingLeft()
 	{
-		return 8;
+		return 0;
 	}
 
 	@ConfigItem(
@@ -205,7 +205,7 @@ public interface InteractionCueConfig extends Config
 	)
 	default String labelFormat()
 	{
-		return "{#FFF}{action} {source_icon} {#FF9040}{source}{target:{#FFF} -> {#00ffff}@1}";
+		return "{source_icon}";
 	}
 
 	@ConfigItem(
@@ -217,7 +217,7 @@ public interface InteractionCueConfig extends Config
 	)
 	default boolean background()
 	{
-		return true;
+		return false;
 	}
 
 	@Alpha
@@ -258,7 +258,7 @@ public interface InteractionCueConfig extends Config
 	)
 	default boolean tooltipBorder()
 	{
-		return true;
+		return false;
 	}
 
 	@Alpha
@@ -306,7 +306,7 @@ public interface InteractionCueConfig extends Config
 		position = 1,
 		keyName = "pendingMarkerOrigin",
 		name = "Origin",
-		description = "Inventory item point used to place the pending marker badge",
+		description = "Inventory item point used to place the marker badge",
 		section = markerSection
 	)
 	default InteractionCueMarkerOrigin pendingMarkerOrigin()
@@ -322,7 +322,7 @@ public interface InteractionCueConfig extends Config
 		position = 2,
 		keyName = "pendingMarkerXOffset",
 		name = "X offset",
-		description = "Horizontal pending marker badge offset",
+		description = "Horizontal marker badge offset",
 		section = markerSection
 	)
 	default int pendingMarkerXOffset()
@@ -338,7 +338,7 @@ public interface InteractionCueConfig extends Config
 		position = 3,
 		keyName = "pendingMarkerYOffset",
 		name = "Y offset",
-		description = "Vertical pending marker badge offset",
+		description = "Vertical marker badge offset",
 		section = markerSection
 	)
 	default int pendingMarkerYOffset()
@@ -354,7 +354,7 @@ public interface InteractionCueConfig extends Config
 		position = 4,
 		keyName = "pendingMarkerCorner",
 		name = "Corner",
-		description = "Corner size for pending marker border and background",
+		description = "Corner size for marker border and background",
 		section = markerSection
 	)
 	default int pendingMarkerCorner()
@@ -370,7 +370,7 @@ public interface InteractionCueConfig extends Config
 		position = 5,
 		keyName = "pendingMarkerPaddingTop",
 		name = "Padding top",
-		description = "Top padding around the pending marker badge",
+		description = "Top padding around the marker badge",
 		section = markerSection
 	)
 	default int pendingMarkerPaddingTop()
@@ -386,7 +386,7 @@ public interface InteractionCueConfig extends Config
 		position = 6,
 		keyName = "pendingMarkerPaddingRight",
 		name = "Padding right",
-		description = "Right padding around the pending marker badge",
+		description = "Right padding around the marker badge",
 		section = markerSection
 	)
 	default int pendingMarkerPaddingRight()
@@ -402,7 +402,7 @@ public interface InteractionCueConfig extends Config
 		position = 7,
 		keyName = "pendingMarkerPaddingBottom",
 		name = "Padding bottom",
-		description = "Bottom padding around the pending marker badge",
+		description = "Bottom padding around the marker badge",
 		section = markerSection
 	)
 	default int pendingMarkerPaddingBottom()
@@ -418,7 +418,7 @@ public interface InteractionCueConfig extends Config
 		position = 8,
 		keyName = "pendingMarkerPaddingLeft",
 		name = "Padding left",
-		description = "Left padding around the pending marker badge",
+		description = "Left padding around the marker badge",
 		section = markerSection
 	)
 	default int pendingMarkerPaddingLeft()
@@ -443,7 +443,7 @@ public interface InteractionCueConfig extends Config
 		position = 1,
 		keyName = "pendingMarkerColor",
 		name = "Color",
-		description = "Color used for the pending marker border",
+		description = "Color used for the marker border",
 		section = markerBorderSection
 	)
 	default Color pendingMarkerColor()
@@ -499,7 +499,7 @@ public interface InteractionCueConfig extends Config
 		position = 0,
 		keyName = "pendingMarkerBackground",
 		name = "Enabled",
-		description = "Show a background behind the pending marker",
+		description = "Show a background behind the marker",
 		section = markerBackgroundSection
 	)
 	default boolean pendingMarkerBackground()
@@ -512,7 +512,7 @@ public interface InteractionCueConfig extends Config
 		position = 1,
 		keyName = "pendingMarkerBackgroundColor",
 		name = "Color",
-		description = "Color used for the pending marker background",
+		description = "Color used for the marker background",
 		section = markerBackgroundSection
 	)
 	default Color pendingMarkerBackgroundColor()
