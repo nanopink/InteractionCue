@@ -1,7 +1,7 @@
 package com.interactioncue;
 
-import java.awt.Canvas;
 import java.awt.BasicStroke;
+import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FontMetrics;
@@ -18,7 +18,6 @@ import net.runelite.api.Point;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
-import net.runelite.client.ui.overlay.OverlayPriority;
 
 public class InteractionCueCursorOverlay extends Overlay
 {
@@ -34,7 +33,7 @@ public class InteractionCueCursorOverlay extends Overlay
 		this.config = config;
 		setPosition(OverlayPosition.DYNAMIC);
 		setLayer(OverlayLayer.ALWAYS_ON_TOP);
-		setPriority(OverlayPriority.HIGH);
+		setPriority(PRIORITY_HIGH);
 	}
 
 	@Override
@@ -220,7 +219,7 @@ public class InteractionCueCursorOverlay extends Overlay
 		graphics.drawImage(image, x + (size - width) / 2, y + (size - height) / 2, width, height, null);
 	}
 
-	private List<InteractionCueLabelPart> parseLabel(InteractionCue cue)
+	List<InteractionCueLabelPart> parseLabel(InteractionCue cue)
 	{
 		List<InteractionCueLabelPart> parts = new ArrayList<>();
 		parseFormat(config.labelFormat(), cue, parts, new ColorState(Color.WHITE));
@@ -290,7 +289,7 @@ public class InteractionCueCursorOverlay extends Overlay
 			return true;
 		}
 
-		if ("source".equals(token))
+		if ("source".equals(token) || "tool".equals(token))
 		{
 			text.append(cue.getSource());
 			return true;
@@ -305,7 +304,14 @@ public class InteractionCueCursorOverlay extends Overlay
 		if ("source_icon".equals(token))
 		{
 			addPart(parts, text, state.color);
-			parts.add(new InteractionCueLabelPart(cue.getImage(), cue.getColor(), cue.getShortLabel()));
+			parts.add(new InteractionCueLabelPart(cue.getImage(), cue.getColor(), cue.getSourceShortLabel()));
+			return true;
+		}
+
+		if ("action_icon".equals(token) || "icon".equals(token))
+		{
+			addPart(parts, text, state.color);
+			parts.add(new InteractionCueLabelPart(cue.getImage(), cue.getColor(), cue.getActionShortLabel()));
 			return true;
 		}
 
@@ -472,6 +478,7 @@ public class InteractionCueCursorOverlay extends Overlay
 			case "action":
 				return cue.getAction();
 			case "source":
+			case "tool":
 				return cue.getSource();
 			case "target":
 				return cue.getTarget();

@@ -2,6 +2,7 @@ package com.interactioncue;
 
 import java.awt.Color;
 import java.awt.image.BufferedImage;
+import java.util.Locale;
 
 class InteractionCue
 {
@@ -54,13 +55,30 @@ class InteractionCue
 		return color;
 	}
 
-	String getShortLabel()
+	InteractionCue withTarget(String newTarget)
 	{
-		if (source.isEmpty())
+		return new InteractionCue(active, action, source, newTarget, image, color);
+	}
+
+	String getSourceShortLabel()
+	{
+		return getShortLabel(source);
+	}
+
+	String getActionShortLabel()
+	{
+		return getShortLabel(action);
+	}
+
+	private static String getShortLabel(String value)
+	{
+		if (value.isEmpty())
 		{
 			return "";
 		}
 
-		return source.length() <= 3 ? source.toUpperCase() : source.substring(0, 3).toUpperCase();
+		return value.length() <= 3
+			? value.toUpperCase(Locale.ROOT)
+			: value.substring(0, 3).toUpperCase(Locale.ROOT);
 	}
 }

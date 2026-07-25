@@ -27,7 +27,9 @@ public class InteractionCueItemOverlay extends WidgetItemOverlay
 	public void renderItemOverlay(Graphics2D graphics, int itemId, WidgetItem item)
 	{
 		InteractionCue cue = plugin.getPendingCue();
-		if (!config.pendingMarker() || !cue.isActive() || !plugin.isPendingSlot(item.getWidget().getIndex()))
+		if (!config.pendingMarker()
+			|| !cue.isActive()
+			|| !plugin.isPendingSlot(item.getWidget(), itemId, item.getQuantity()))
 		{
 			return;
 		}
@@ -119,7 +121,9 @@ public class InteractionCueItemOverlay extends WidgetItemOverlay
 		double scale = Math.min(bounds.width / (double) image.getWidth(), bounds.height / (double) image.getHeight());
 		int width = Math.max(1, (int) Math.round(image.getWidth() * scale));
 		int height = Math.max(1, (int) Math.round(image.getHeight() * scale));
-		graphics.drawImage(image, bounds.x + (bounds.width - width) / 2, bounds.y + (bounds.height - height) / 2, width, height, null);
+		int x = bounds.x + (bounds.width - width) / 2;
+		int y = bounds.y + (bounds.height - height) / 2;
+		graphics.drawImage(image, x, y, width, height, null);
 	}
 
 	private void fillBackground(Graphics2D graphics, Rectangle bounds, int corner)
